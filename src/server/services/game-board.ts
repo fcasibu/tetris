@@ -56,10 +56,27 @@ export class GameboardService {
 
       activeTetromino.updatePosition(positionDelta.x, positionDelta.y + 1);
     }
+
+    this.processLineClears();
   }
 
   public isOverflowing() {
     return this.board[0]!.some((cell) => cell === BlockState.Filled);
+  }
+
+  private processLineClears() {
+    for (let row = this.board.length - 1; row >= 0; --row) {
+      const isRowFilled = this.board[row]?.every(
+        (cell) => cell === BlockState.Filled,
+      );
+
+      if (!isRowFilled) continue;
+
+      this.board.splice(row, 1);
+      this.board.unshift(
+        Array.from({ length: GRID_COLS }, () => BlockState.Empty),
+      );
+    }
   }
 
   private handleMoveAction(move: 'left' | 'down' | 'right'): Position {
