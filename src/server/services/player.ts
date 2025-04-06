@@ -23,6 +23,7 @@ export class PlayerService {
   private tetrominoQueue: TetrominoType[];
   private isGameOver = false;
   private canSwap = false;
+  private combo = 0;
 
   private maxQueueSize = 5;
 
@@ -41,10 +42,10 @@ export class PlayerService {
       currentTetromino: this.currentTetromino?.getState() ?? null,
       tetrominoQueue: this.tetrominoQueue,
       isGameOver: this.isGameOver,
+      combo: this.combo,
     };
   }
 
-  // TODO(fcasibu): player input
   public update(dt: number, action: PlayerAction) {
     if (action.hold) {
       this.handleSwapping();
@@ -52,7 +53,12 @@ export class PlayerService {
 
     const tetromino = this.getCurrentTetromino();
 
-    this.board.update(dt, tetromino, action);
+    const linesCleared = this.board.update(dt, tetromino, action);
+
+    if (tetromino.checkIfPlaced()) {
+      this.combo = linesCleared ? this.combo + linesCleared : 0;
+    }
+
     if (tetromino.checkIfPlaced()) {
       this.canSwap = true;
     }
