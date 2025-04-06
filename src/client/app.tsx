@@ -2,16 +2,19 @@ import { useEffect, useState } from 'react';
 import { useSocketClient } from './providers/socket-client-provider';
 import { GameArea } from './components/game-area';
 import type { GameState } from '../shared/types/game.types';
+import { PieceQueue } from './components/piece-queue';
 
 export function App() {
   const socketClient = useSocketClient();
   const [gameState, setGameState] = useState<GameState | null>(null);
+  // TODO(fcasibu): just put everything in here for now
+  const [multi, setMulti] = useState(false);
 
   useEffect(() => {
     socketClient.initializeGameInstanceUpdateListener((data) => {
       setGameState(data);
     });
-  }, []);
+  }, [socketClient]);
 
   useEffect(() => {
     const handleKeydown = (event: KeyboardEvent) => {
@@ -53,7 +56,7 @@ export function App() {
     return () => {
       window.removeEventListener('keydown', handleKeydown);
     };
-  }, []);
+  }, [socketClient]);
 
   // TODO(fcasibu): refactor
   if (gameState) {
@@ -61,19 +64,39 @@ export function App() {
     const width = (playerState.board[0]?.length ?? 0) * 30;
     const height = (playerState.board?.length ?? 0) * 30;
 
-    if (!playerState) return null;
-
     return (
-      <div className="flex gap-12 justify-center items-center h-full pt-42">
-        {Object.values(gameState.players).map((player) => (
-          <GameArea
-            key={player.id}
-            playerState={player}
-            width={width}
-            height={height}
-            showGrid
-          />
-        ))}
+      <div className="flex flex-col gap-12 justify-center items-center h-full pt-42">
+        <div className="flex gap-4">
+          {Object.values(gameState.players).map((player) => (
+            <div key={player.id} className="flex gap-4">
+              <div className="flex flex-col gap-2">
+                <div className="h-8">
+                  {player.combo ? <span>x{player.combo}</span> : null}
+                </div>
+                <GameArea
+                  playerState={player}
+                  width={width}
+                  height={height}
+                  showGrid
+                />
+              </div>
+              <div className="mt-10">
+                <PieceQueue queue={player.tetrominoQueue} />
+              </div>
+            </div>
+          ))}
+        </div>
+        {multi && (
+          <button
+            type="button"
+            className="cursor-pointer bg-black text-white rounded-lg px-3"
+            onClick={() => {
+              socketClient.startGame(socketClient.getRoomIdOfSelf()!);
+            }}
+          >
+            STart
+          </button>
+        )}
       </div>
     );
   }
@@ -83,8 +106,10 @@ export function App() {
       <button
         type="button"
         onClick={() => {
+          setMulti(false);
           socketClient.joinRoom(
             socketClient.getSelfId(),
+            'solo',
             (updatedGameState) => {
               setGameState(updatedGameState);
               socketClient.startGame(updatedGameState.id!);
@@ -97,9 +122,12 @@ export function App() {
       <button
         type="button"
         onClick={() => {
+          setMulti(true);
           socketClient.joinRoom(
             socketClient.getSelfId(),
+            'multi',
             (updatedGameState) => {
+              console.log(updatedGameState);
               setGameState(updatedGameState);
             },
           );

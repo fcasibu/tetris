@@ -30,12 +30,14 @@ export interface ActiveTetromino {
 
 export type Gameboard = BlockState[][];
 
+// TODO(fcasibu): garbage, score
 export interface PlayerState {
   id: string;
   board: Gameboard;
   heldTetromino: TetrominoType | null;
   currentTetromino: ActiveTetromino | null;
   tetrominoQueue: TetrominoType[];
+  combo: number;
   isGameOver: boolean;
 }
 

@@ -48,8 +48,12 @@ export class SocketClientService {
     return () => this.io.removeAllListeners(event);
   }
 
-  public joinRoom(playerId: string, onJoin: (gameState: GameState) => void) {
-    this.io.emit('joinRoom', { playerId }, (result) => {
+  public joinRoom(
+    playerId: string,
+    type: 'solo' | 'multi',
+    onJoin: (gameState: GameState) => void,
+  ) {
+    this.io.emit('joinRoom', { playerId, type }, (result) => {
       if (result.success) {
         onJoin(result.payload);
         this.rooms.set(playerId, result.payload.id);

@@ -21,7 +21,11 @@ export class GameboardService {
   }
 
   // TODO(fcasibu): improve soft drop fall speed
-  public update(dt: number, activeTetromino: Tetromino, action: PlayerAction) {
+  public update(
+    dt: number,
+    activeTetromino: Tetromino,
+    action: PlayerAction,
+  ): number {
     const { position: currentPosition, shape: originalShape } =
       activeTetromino.getState();
     let positionDelta = currentPosition;
@@ -49,13 +53,12 @@ export class GameboardService {
       this.placePiece(currentShape, positionDelta);
       activeTetromino.updatePosition(positionDelta.x, positionDelta.y);
       activeTetromino.setAsPlaced();
-      this.processLineClears();
-      return;
+      return this.processLineClears();
     }
 
     this.currentTick += dt;
-    let applyGravity = this.currentTick >= this.maxTicks;
-    let softDrop = action.move === 'down';
+    const applyGravity = this.currentTick >= this.maxTicks;
+    const softDrop = action.move === 'down';
     let collidedVertically = false;
 
     if (applyGravity || softDrop) {
@@ -76,8 +79,10 @@ export class GameboardService {
     if (collidedVertically) {
       this.placePiece(currentShape, positionDelta);
       activeTetromino.setAsPlaced();
-      this.processLineClears();
+      return this.processLineClears();
     }
+
+    return 0;
   }
 
   public isOverflowing(): boolean {
@@ -121,6 +126,8 @@ export class GameboardService {
   }
 
   private processLineClears() {
+    let linesCleared = 0;
+
     for (let row = GRID_ROWS - 1; row >= 0; ) {
       const isRowFilled = this.board[row]?.every(
         (cell) => cell === BlockState.Filled,
@@ -131,10 +138,13 @@ export class GameboardService {
         this.board.unshift(
           Array.from({ length: GRID_COLS }, () => BlockState.Empty),
         );
+        linesCleared += 1;
       } else {
         row--;
       }
     }
+
+    return linesCleared;
   }
 
   private handleMoveAction(move: 'left' | 'down' | 'right'): {

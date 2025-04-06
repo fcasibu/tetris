@@ -21,6 +21,7 @@ export class GameInstanceManager {
       socket.on('startGame', ({ roomId }) => {
         const instance = this.gameInstances.get(roomId);
 
+        console.log(roomId);
         if (!instance) return;
 
         instance.start();
@@ -66,31 +67,41 @@ export class GameInstanceManager {
         instance.move(playerId, position);
       });
 
-      // TODO(fcasibu): solo/pvp specific
-      socket.on('joinRoom', ({ playerId }, ack) => {
-        const availableInstance = this.findAvailableInstance();
+      socket.on(
+        'joinRoom',
+        (
+          { playerId, type }: { playerId: string; type: 'solo' | 'multi' },
+          ack,
+        ) => {
+          let instance: GameInstance | undefined;
 
-        if (!availableInstance) {
-          const gameInstance = new GameInstance(io);
-          socket.join(gameInstance.getRoomId());
+          if (type === 'multi') {
+            instance = this.findAvailableInstance();
+          }
 
-          this.gameInstances.set(gameInstance.getRoomId(), gameInstance);
-          gameInstance.addPlayer(playerId);
-          return;
-        }
+          if (!instance) {
+            instance = new GameInstance(io);
+            this.gameInstances.set(instance.getRoomId(), instance);
+          }
 
-        availableInstance.addPlayer(playerId);
-        socket.join(availableInstance.getRoomId());
+          socket.join(instance.getRoomId());
+          instance.addPlayer(playerId);
 
-        // TODO(fcasibu): for testing
-        availableInstance.start();
+          if (type === 'solo') {
+            instance.start();
+          }
 
-        ack?.({
-          success: true,
-          payload: availableInstance.getState(),
-        });
-      });
+          assert(this.io);
+          this.io
+            .to(instance.getRoomId())
+            .emit('gameStateUpdate', instance.getState());
 
+          ack?.({
+            success: true,
+            payload: instance.getState(),
+          });
+        },
+      );
       socket.on('leaveRoom', ({ roomId, playerId }, ack) => {
         const instance = this.gameInstances.get(roomId);
 
@@ -114,6 +125,7 @@ export class GameInstanceManager {
         }
 
         instance.removePlayer(socket.id);
+        socket.leave(instance.getRoomId());
 
         if (instance.isEmpty()) {
           this.gameInstances.delete(instance.getRoomId());

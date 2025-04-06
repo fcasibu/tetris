@@ -97,7 +97,12 @@ export class GameInstance {
         return;
       }
 
-      for (const [_, { player, action }] of this.players) {
+      if (this.players.size === 1 && hasWinner) {
+        this.endGame();
+        return;
+      }
+
+      for (const [, { player, action }] of this.players) {
         const playerState = player.getState();
 
         if (playerState.isGameOver) {

@@ -3,6 +3,8 @@ import type { GameState } from './game.types';
 
 export interface ClientPayloads {
   joinRoom: {
+    // TODO(fcasibu): ok for now
+    type: 'solo' | 'multi';
     playerId: string;
   };
   leaveRoom: {
