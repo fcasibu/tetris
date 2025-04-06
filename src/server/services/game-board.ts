@@ -28,8 +28,12 @@ export class GameboardService {
       this.board[currY]![currX] = BlockState.Filled;
       this.previouslyFilledCoordinates.push([currX, currY]);
 
-      activeTetromino.updatePosition(position.x + 1, position.y + 1);
+      activeTetromino.updatePosition(position.x, position.y + 1);
     }
+  }
+
+  public isOverflowing() {
+    return this.board[0]!.some((cell) => cell === BlockState.Filled);
   }
 
   private checkCollision(x: number, y: number) {
