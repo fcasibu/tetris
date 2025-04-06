@@ -81,6 +81,8 @@ export class PlayerService {
     }
   }
 
+  // TODO(fcasibu): Improve piece generation
+  // THE 7 BAG?!?
   private getCurrentTetromino(): Tetromino {
     if (!this.currentTetromino) {
       const type = this.tetrominoQueue.shift();
