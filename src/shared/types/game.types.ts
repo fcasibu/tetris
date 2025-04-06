@@ -20,9 +20,11 @@ export enum BlockState {
 
 export type Rotation = 0 | 90 | 180 | 270;
 
+export type Shape = [number, number][];
+
 export interface ActiveTetromino {
   type: TetrominoType;
-  shape: [number, number][];
+  shape: Shape;
   position: Position;
 }
 
@@ -47,4 +49,11 @@ export interface GameState {
   id: string;
   players: Record<string, PlayerState>;
   status: GameStatus;
+}
+
+export interface PlayerAction {
+  drop?: boolean;
+  rotate?: boolean;
+  move?: 'left' | 'down' | 'right';
+  hold?: boolean;
 }
