@@ -32,9 +32,8 @@ export interface PlayerState {
   id: string;
   board: Gameboard;
   heldTetromino: TetrominoType | null;
-  currentTetromino: ActiveTetromino;
+  currentTetromino: ActiveTetromino | null;
   tetrominoQueue: TetrominoType[];
-  score: number;
   isGameOver: boolean;
 }
 
