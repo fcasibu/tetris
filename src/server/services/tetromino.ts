@@ -24,10 +24,14 @@ export class Tetromino {
     this.position.y = y;
   }
 
+  public getShape() {
+    return getTetrominoShape(this.type, this.rotation);
+  }
+
   public getState(): ActiveTetromino {
     return {
       type: this.type,
-      shape: getTetrominoShape(this.type, this.rotation),
+      shape: this.getShape(),
       position: this.position,
     };
   }

@@ -22,7 +22,7 @@ export type Rotation = 0 | 90 | 180 | 270;
 
 export interface ActiveTetromino {
   type: TetrominoType;
-  shape: number[][];
+  shape: [number, number][];
   position: Position;
 }
 
