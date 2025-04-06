@@ -1,11 +1,11 @@
 import {
-  type PlayerAction,
   TetrominoType,
   type PlayerState,
-} from '@shared/types/game.types';
+  type PlayerAction,
+} from '../../shared/types/game.types';
 import type { GameboardService } from './game-board';
 import { Tetromino } from './tetromino';
-import assert from 'node:assert';
+import { strict as assert } from 'node:assert';
 
 const TYPES = [
   TetrominoType.I,
@@ -20,15 +20,18 @@ const TYPES = [
 export class PlayerService {
   private heldTetromino: TetrominoType | null = null;
   private currentTetromino: Tetromino | null = null;
-  private tetrominoQueue: TetrominoType[] = this.generateInitialTetrominos();
+  private tetrominoQueue: TetrominoType[];
   private isGameOver = false;
+  private canSwap = false;
 
   private maxQueueSize = 5;
 
   constructor(
     private readonly id: string,
     private readonly board: GameboardService,
-  ) {}
+  ) {
+    this.tetrominoQueue = this.generateInitialTetrominos();
+  }
 
   public getState(): PlayerState {
     return {
@@ -42,41 +45,62 @@ export class PlayerService {
   }
 
   // TODO(fcasibu): player input
-  public update(action: PlayerAction) {
+  public update(dt: number, action: PlayerAction) {
     if (action.hold) {
-      this.holdTetromino();
+      this.handleSwapping();
     }
 
     const tetromino = this.getCurrentTetromino();
 
-    this.board.update(tetromino, action);
+    this.board.update(dt, tetromino, action);
+    if (tetromino.checkIfPlaced()) {
+      this.canSwap = true;
+    }
 
     if (this.board.isOverflowing()) {
       this.isGameOver = true;
     }
   }
 
+  private handleSwapping() {
+    if (this.canSwap) {
+      this.canSwap = false;
+
+      if (!this.heldTetromino) {
+        assert(this.currentTetromino);
+
+        this.heldTetromino = this.currentTetromino.getState().type;
+        this.currentTetromino = null;
+      } else {
+        assert(this.currentTetromino);
+
+        const temp = this.currentTetromino;
+        this.currentTetromino = new Tetromino(this.heldTetromino);
+        this.heldTetromino = temp.getState().type;
+      }
+    }
+  }
+
   private getCurrentTetromino(): Tetromino {
     if (!this.currentTetromino) {
       const type = this.tetrominoQueue.shift();
-      assert(type);
+      assert(typeof type !== 'undefined');
 
       this.currentTetromino = new Tetromino(type);
 
       const newTetromino = TYPES[Math.floor(Math.random() * TYPES.length)];
-      assert(newTetromino);
+      assert(typeof newTetromino !== 'undefined');
 
       this.tetrominoQueue.push(newTetromino);
     }
 
+    const currentTetromino = this.currentTetromino;
+    if (currentTetromino.checkIfPlaced()) {
+      this.currentTetromino = null;
+      return this.getCurrentTetromino();
+    }
+
     return this.currentTetromino;
-  }
-
-  private holdTetromino() {
-    if (!this.currentTetromino) return;
-
-    this.heldTetromino = this.currentTetromino.getState().type;
-    this.currentTetromino = null;
   }
 
   private generateInitialTetrominos() {

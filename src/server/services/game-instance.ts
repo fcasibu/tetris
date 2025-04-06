@@ -1,11 +1,11 @@
-import {
-  GameStatus,
-  type GameState,
-  type PlayerAction,
-} from '@shared/types/game.types';
 import { PlayerService } from './player';
 import { GameboardService } from './game-board';
-import type { ServerSocket } from '@shared/types/socket.events';
+import {
+  type PlayerAction,
+  GameStatus,
+  type GameState,
+} from '../../shared/types/game.types';
+import type { ServerSocket } from '../../shared/types/socket.events';
 
 export class GameInstance {
   private id = crypto.randomUUID();
@@ -19,38 +19,46 @@ export class GameInstance {
   private status = GameStatus.Lobby;
   private interval: NodeJS.Timeout | undefined;
 
-  constructor(private readonly socket: ServerSocket) {
-    socket.on('swapTetromino', ({ playerId }) => {
-      const player = this.players.get(playerId);
+  constructor(private readonly socket: ServerSocket) {}
 
-      if (player) {
-        player.action.hold = true;
-      }
-    });
+  public swap(playerId: string) {
+    const player = this.players.get(playerId);
 
-    socket.on('rotateTetromino', ({ playerId }) => {
-      const player = this.players.get(playerId);
+    if (!player) return;
 
-      if (player) {
-        player.action.rotate = true;
-      }
-    });
+    player.action.hold = true;
+  }
 
-    socket.on('dropTetromino', ({ playerId }) => {
-      const player = this.players.get(playerId);
+  public rotate(playerId: string) {
+    const player = this.players.get(playerId);
 
-      if (player) {
-        player.action.drop = true;
-      }
-    });
+    if (!player) return;
 
-    socket.on('moveTetromino', ({ playerId, position }) => {
-      const player = this.players.get(playerId);
+    player.action.rotate = true;
+  }
 
-      if (player) {
-        player.action.move = position;
-      }
-    });
+  public drop(playerId: string) {
+    const player = this.players.get(playerId);
+
+    if (!player) return;
+
+    player.action.drop = true;
+  }
+
+  public move(playerId: string, position: 'left' | 'down' | 'right') {
+    const player = this.players.get(playerId);
+
+    if (!player) return;
+
+    player.action.move = position;
+  }
+
+  public getPlayerInstance(playerId: string) {
+    return this.players.has(playerId) ? this : null;
+  }
+
+  public isEmpty() {
+    return this.players.size === 0;
   }
 
   public getRoomId() {
@@ -78,35 +86,29 @@ export class GameInstance {
     this.status = GameStatus.Playing;
     let winner: string | null = null;
     let hasWinner = false;
+    let lastUpdated = performance.now();
 
     this.interval = setInterval(() => {
-      if (this.players.size < 2) {
-        this.status = GameStatus.Finished;
-
-        this.socket.to(this.id).emit('gameWinner', {
-          roomId: this.id,
-          playerId:
-            this.players.values().next().value?.player.getState().id ?? '',
-        });
-
-        this.players.clear();
-
-        clearInterval(this.interval);
-
+      const now = performance.now();
+      const dt = (now - lastUpdated) / 1000;
+      lastUpdated = now;
+      if (this.players.size === 0) {
+        this.endGame();
         return;
       }
 
       for (const [_, { player, action }] of this.players) {
         const playerState = player.getState();
+
         if (playerState.isGameOver) {
           hasWinner = true;
         }
 
-        if (hasWinner && !playerState.isGameOver) {
+        if (!playerState.isGameOver && hasWinner) {
           winner = playerState.id;
         }
 
-        player.update(action);
+        player.update(dt, action);
 
         action.move = undefined;
         action.drop = undefined;
@@ -120,13 +122,16 @@ export class GameInstance {
           playerId: winner,
         });
 
-        this.status = GameStatus.Finished;
-
-        clearInterval(this.interval);
+        this.endGame();
       }
 
       this.socket.to(this.id).emit('gameStateUpdate', this.getState());
     }, 1000 / 60);
+  }
+
+  private endGame() {
+    this.status = GameStatus.Finished;
+    clearInterval(this.interval);
   }
 
   public addPlayer(socketId: string) {

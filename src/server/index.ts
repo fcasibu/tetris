@@ -1,7 +1,7 @@
 import Fastify from 'fastify';
 import fastifyIo from 'fastify-socket.io';
 import { GameInstanceManager } from './services/game-instance-manager';
-import type { ServerSocket } from '@shared/types/socket.events';
+import type { ServerSocket } from '../shared/types/socket.events';
 
 const fastify = Fastify({ logger: true });
 

@@ -17,11 +17,7 @@
     "verbatimModuleSyntax": true,
     "noUncheckedIndexedAccess": true,
     "noImplicitOverride": true,
-    "noUncheckedSideEffectImports": true,
-    "paths": {
-      "@server/*": ["./src/server/*"],
-      "@shared/*": ["./src/shared/*"]
-    }
+    "noUncheckedSideEffectImports": true
   },
   "include": ["vite.config.ts", "src/server/**/*", "src/shared/**/*"]
 }

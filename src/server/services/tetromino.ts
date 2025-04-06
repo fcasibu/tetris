@@ -1,29 +1,53 @@
-import { ROTATIONS } from '@shared/constants';
-import {
+import { ROTATIONS } from '../../shared/constants';
+import type {
+  Position,
+  Rotation,
   TetrominoType,
-  type ActiveTetromino,
-  type Position,
-  type Rotation,
-} from '@shared/types/game.types';
-import { getTetrominoShape } from '@shared/utils/get-tetromino-shape';
+  ActiveTetromino,
+} from '../../shared/types/game.types';
+import { getTetrominoShape } from '../../shared/utils/get-tetromino-shape';
 
 export class Tetromino {
   private position: Position = { x: 0, y: 0 };
   private rotation: Rotation = 0;
+  private placed = false;
 
   constructor(private readonly type: TetrominoType) {}
 
-  public rotate(cb: (shape: [number, number][]) => boolean): boolean {
+  public rotate(newRotation?: Rotation) {
+    if (newRotation) {
+      this.rotation = newRotation;
+      return;
+    }
+
     const newRotationIndex = ROTATIONS.indexOf(this.rotation) + 1;
 
     this.rotation = ROTATIONS[newRotationIndex % ROTATIONS.length] as Rotation;
+  }
 
-    return cb(this.getShape());
+  public setAsPlaced() {
+    this.placed = true;
+  }
+
+  public checkIfPlaced() {
+    return this.placed;
+  }
+
+  public getRotation() {
+    return this.rotation;
+  }
+
+  public getPosition() {
+    return this.position;
   }
 
   public updatePosition(x: number, y: number) {
     this.position.x = x;
     this.position.y = y;
+  }
+
+  public getShapeForRotation(rotation: Rotation) {
+    return getTetrominoShape(this.type, rotation);
   }
 
   public getShape() {
@@ -33,7 +57,7 @@ export class Tetromino {
   public getState(): ActiveTetromino {
     return {
       type: this.type,
-      shape: this.getShape(),
+      shape: this.getShape()!,
       position: this.position,
     };
   }

@@ -19,11 +19,7 @@
     "verbatimModuleSyntax": true,
     "noUncheckedIndexedAccess": true,
     "noImplicitOverride": true,
-    "noUncheckedSideEffectImports": true,
-    "paths": {
-      "@client/*": ["./src/client/*"],
-      "@shared/*": ["./src/shared/*"]
-    }
+    "noUncheckedSideEffectImports": true
   },
   "include": ["src/client/**/*", "src/shared/**/*"]
 }

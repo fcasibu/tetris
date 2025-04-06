@@ -1,10 +1,10 @@
-import type { ServerSocket } from '@shared/types/socket.events';
+import type { ServerSocket } from '../../shared/types/socket.events';
 import { GameInstance } from './game-instance';
 import { strict as assert } from 'node:assert';
 
 export class GameInstanceManager {
   private gameInstances = new Map<string, GameInstance>();
-  private io: ServerSocket;
+  private io: ServerSocket | null = null;
 
   constructor() {}
 
@@ -14,14 +14,64 @@ export class GameInstanceManager {
   }
 
   private setupListeners() {
-    assert(this.io);
+    const io = this.io;
+    assert(io);
 
-    this.io.on('connection', (socket: ServerSocket) => {
+    io.on('connection', (socket: ServerSocket) => {
+      socket.on('startGame', ({ roomId }) => {
+        const instance = this.gameInstances.get(roomId);
+
+        if (!instance) return;
+
+        instance.start();
+      });
+
+      socket.on('swapTetromino', ({ playerId }) => {
+        const instance = this.findInstanceOfPlayer(playerId);
+
+        if (!instance) {
+          return;
+        }
+
+        instance.swap(playerId);
+      });
+
+      socket.on('dropTetromino', ({ playerId }) => {
+        const instance = this.findInstanceOfPlayer(playerId);
+
+        if (!instance) {
+          return;
+        }
+
+        instance.drop(playerId);
+      });
+
+      socket.on('rotateTetromino', ({ playerId }) => {
+        const instance = this.findInstanceOfPlayer(playerId);
+
+        if (!instance) {
+          return;
+        }
+
+        instance.rotate(playerId);
+      });
+
+      socket.on('moveTetromino', ({ playerId, position }) => {
+        const instance = this.findInstanceOfPlayer(playerId);
+
+        if (!instance) {
+          return;
+        }
+
+        instance.move(playerId, position);
+      });
+
+      // TODO(fcasibu): solo/pvp specific
       socket.on('joinRoom', ({ playerId }, ack) => {
         const availableInstance = this.findAvailableInstance();
 
         if (!availableInstance) {
-          const gameInstance = new GameInstance(this.io);
+          const gameInstance = new GameInstance(io);
           socket.join(gameInstance.getRoomId());
 
           this.gameInstances.set(gameInstance.getRoomId(), gameInstance);
@@ -32,7 +82,10 @@ export class GameInstanceManager {
         availableInstance.addPlayer(playerId);
         socket.join(availableInstance.getRoomId());
 
-        ack({
+        // TODO(fcasibu): for testing
+        availableInstance.start();
+
+        ack?.({
           success: true,
           payload: availableInstance.getState(),
         });
@@ -42,7 +95,7 @@ export class GameInstanceManager {
         const instance = this.gameInstances.get(roomId);
 
         if (!instance) {
-          ack({
+          ack?.({
             success: false,
             reason: 'The room does not exist',
           });
@@ -50,16 +103,36 @@ export class GameInstanceManager {
         }
 
         instance.removePlayer(playerId);
-        this.io.to(instance.getRoomId()).emit('leaveRoom', { playerId });
+        io.to(instance.getRoomId()).emit('leaveRoom', { playerId });
       });
 
-      // TODO(fcasibu): handle disconnect
+      socket.on('disconnect', () => {
+        const instance = this.findInstanceOfPlayer(socket.id);
+
+        if (!instance) {
+          return;
+        }
+
+        instance.removePlayer(socket.id);
+
+        if (instance.isEmpty()) {
+          this.gameInstances.delete(instance.getRoomId());
+        }
+      });
     });
   }
 
   private findAvailableInstance() {
     for (const gameInstance of this.gameInstances.values()) {
       if (gameInstance.isAvailable()) return gameInstance;
+    }
+  }
+
+  private findInstanceOfPlayer(socketId: string) {
+    for (const instance of this.gameInstances.values()) {
+      const player = instance.getPlayerInstance(socketId);
+
+      if (player) return player;
     }
   }
 }

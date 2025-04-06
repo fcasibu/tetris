@@ -1,7 +1,8 @@
-import type { GameState } from '@shared/types/game.types';
-import type { ClientSocket } from '@shared/types/socket.events';
 import { io } from 'socket.io-client';
+import type { ClientSocket } from '../../shared/types/socket.events';
+import type { GameState } from '../../shared/types/game.types';
 
+// TODO(fcasibu): refactor unnecessary passing of playerId arguent
 export class SocketClientService {
   private static instance: SocketClientService | undefined;
   private io: ClientSocket;
@@ -63,5 +64,21 @@ export class SocketClientService {
 
   public startGame(roomId: string) {
     this.io.emit('startGame', { roomId });
+  }
+
+  public move(playerId: string, position: 'left' | 'down' | 'right') {
+    this.io.emit('moveTetromino', { playerId, position });
+  }
+
+  public rotate(playerId: string) {
+    this.io.emit('rotateTetromino', { playerId });
+  }
+
+  public drop(playerId: string) {
+    this.io.emit('dropTetromino', { playerId });
+  }
+
+  public swap(playerId: string) {
+    this.io.emit('swapTetromino', { playerId });
   }
 }

@@ -1,4 +1,4 @@
-import { TetrominoType } from '@shared/types/game.types';
+import { TetrominoType } from '../types/game.types';
 
 export const ROTATIONS = [0, 90, 180, 270] as const;
 export const GRID_ROWS = 20;
@@ -14,7 +14,7 @@ export const TETROMINO_COLORS: Record<TetrominoType, string> = {
   [TetrominoType.L]: '#FFA500',
 };
 
-export const GHOST_COLOR = 'rgba(255, 255, 255, 0.3)';
+export const GHOST_COLOR = 'rgba(255, 255, 255, 0.1)';
 export const FILLED_CELL_COLOR = '#888888';
 export const GRID_COLOR = '#333333';
 export const BACKGROUND_COLOR = '#1a1a1a';

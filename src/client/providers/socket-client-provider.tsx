@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState } from 'react';
-import { SocketClientService } from '@client/services/socket-client-service';
+import { SocketClientService } from '../services/socket-client-service';
 
 const SocketClientContext = createContext<SocketClientService | null>(null);
 
@@ -29,6 +29,10 @@ export function SocketClientProvider({ children }: React.PropsWithChildren) {
 
     return () => {
       unsub();
+      socketInstance.leaveRoom(
+        socketInstance.getRoomIdOfSelf()!,
+        socketInstance.getRoomIdOfSelf()!,
+      );
     };
   }, []);
 

@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:server": "npx tsx ./src/server/index.ts",
     "build": "tsc -b && vite build",
     "format": "prettier . --write",
     "lint": "eslint .",

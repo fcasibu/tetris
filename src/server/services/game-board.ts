@@ -1,85 +1,146 @@
-import { GRID_COLS, GRID_ROWS } from '@shared/constants';
+import { GRID_COLS, GRID_ROWS, ROTATIONS } from '../../shared/constants';
 import {
-  BlockState,
   type Gameboard,
+  BlockState,
   type PlayerAction,
   type Position,
   type Shape,
-} from '@shared/types/game.types';
+} from '../../shared/types/game.types';
 import type { Tetromino } from './tetromino';
 
 export class GameboardService {
   private board: Gameboard = Array.from({ length: GRID_ROWS }, () =>
     Array.from({ length: GRID_COLS }, () => BlockState.Empty),
   );
-  private previouslyFilledCoordinates: [number, number][] = [];
+
+  private maxTicks = 1;
+  private currentTick = 0;
 
   public getState(): Gameboard {
-    return structuredClone(this.board);
+    return this.board;
   }
 
-  public update(activeTetromino: Tetromino, action: PlayerAction) {
-    const { position, shape } = activeTetromino.getState();
-
-    this.clearPreviouslyFilledCoordinates();
-    let positionDelta = { x: position.x, y: position.y };
-    let currentShape = shape;
+  // TODO(fcasibu): improve soft drop fall speed
+  public update(dt: number, activeTetromino: Tetromino, action: PlayerAction) {
+    const { position: currentPosition, shape: originalShape } =
+      activeTetromino.getState();
+    let positionDelta = currentPosition;
+    let currentShape = originalShape;
 
     if (action.rotate) {
       currentShape = this.testRotation(activeTetromino);
     }
 
-    if (action.drop) {
-      const newY = this.findCollisionPoint(currentShape, position);
+    if (action.move) {
+      const moveDelta = this.handleMoveAction(action.move);
+      const nextPosition = {
+        x: positionDelta.x + moveDelta.x,
+        y: positionDelta.y + moveDelta.y,
+      };
 
-      activeTetromino.updatePosition(position.x, newY);
+      if (this.isValidPosition(currentShape, nextPosition)) {
+        positionDelta = nextPosition;
+      }
+    }
+
+    if (action.drop) {
+      positionDelta.y = this.findCollisionPoint(currentShape, positionDelta);
+
+      this.placePiece(currentShape, positionDelta);
+      activeTetromino.updatePosition(positionDelta.x, positionDelta.y);
+      activeTetromino.setAsPlaced();
+      this.processLineClears();
       return;
     }
 
-    if (action.move) {
-      const resultOfMoveAction = this.handleMoveAction(action.move);
+    this.currentTick += dt;
+    let applyGravity = this.currentTick >= this.maxTicks;
+    let softDrop = action.move === 'down';
+    let collidedVertically = false;
 
-      positionDelta.x += resultOfMoveAction.x;
-      positionDelta.y += resultOfMoveAction.y;
-    }
+    if (applyGravity || softDrop) {
+      if (applyGravity) this.currentTick = 0;
 
-    for (const [x, y] of currentShape) {
-      const currX = positionDelta.x + x;
-      const currY = positionDelta.y + y;
-
-      if (this.checkCollision(currX, currY)) {
-        return;
+      const potentialPosition = { x: positionDelta.x, y: positionDelta.y + 1 };
+      if (this.isValidPosition(currentShape, potentialPosition)) {
+        positionDelta = potentialPosition;
+      } else {
+        if (applyGravity) {
+          collidedVertically = true;
+        }
       }
-
-      this.board[currY]![currX] = BlockState.Filled;
-      this.previouslyFilledCoordinates.push([currX, currY]);
-
-      activeTetromino.updatePosition(positionDelta.x, positionDelta.y + 1);
     }
 
-    this.processLineClears();
+    activeTetromino.updatePosition(positionDelta.x, positionDelta.y);
+
+    if (collidedVertically) {
+      this.placePiece(currentShape, positionDelta);
+      activeTetromino.setAsPlaced();
+      this.processLineClears();
+    }
   }
 
-  public isOverflowing() {
-    return this.board[0]!.some((cell) => cell === BlockState.Filled);
+  public isOverflowing(): boolean {
+    return Boolean(this.board[0]?.some((cell) => cell === BlockState.Filled));
+  }
+
+  private findCollisionPoint(shape: Shape, position: Position) {
+    let finalY = position.y;
+
+    while (
+      this.isValidPosition(shape, {
+        x: position.x,
+        y: finalY + 1,
+      })
+    ) {
+      finalY++;
+    }
+
+    return finalY;
+  }
+
+  private placePiece(shape: Shape, position: Position) {
+    for (const [x, y] of shape) {
+      const boardX = position.x + x;
+      const boardY = position.y + y;
+      if (this.isWithinBounds({ x: boardX, y: boardY })) {
+        if (this.board[boardY]?.[boardX] === BlockState.Empty) {
+          this.board[boardY]![boardX] = BlockState.Filled;
+        }
+      }
+    }
+  }
+
+  private isWithinBounds(position: Position) {
+    return (
+      position.x >= 0 &&
+      position.x < GRID_COLS &&
+      position.y >= 0 &&
+      position.y < GRID_ROWS
+    );
   }
 
   private processLineClears() {
-    for (let row = this.board.length - 1; row >= 0; --row) {
+    for (let row = GRID_ROWS - 1; row >= 0; ) {
       const isRowFilled = this.board[row]?.every(
         (cell) => cell === BlockState.Filled,
       );
 
-      if (!isRowFilled) continue;
-
-      this.board.splice(row, 1);
-      this.board.unshift(
-        Array.from({ length: GRID_COLS }, () => BlockState.Empty),
-      );
+      if (isRowFilled) {
+        this.board.splice(row, 1);
+        this.board.unshift(
+          Array.from({ length: GRID_COLS }, () => BlockState.Empty),
+        );
+      } else {
+        row--;
+      }
     }
   }
 
-  private handleMoveAction(move: 'left' | 'down' | 'right'): Position {
+  private handleMoveAction(move: 'left' | 'down' | 'right'): {
+    x: number;
+    y: number;
+  } {
     switch (move) {
       case 'left':
         return { x: -1, y: 0 };
@@ -90,66 +151,59 @@ export class GameboardService {
     }
   }
 
-  private findCollisionPoint(shape: Shape, position: Position): number {
-    let yCollisionPoint = 0;
-
-    for (const [x, y] of shape) {
-      yCollisionPoint = Math.max(
-        yCollisionPoint,
-        this.getYCollision(x + position.x, y + position.y),
-      );
+  private checkCollision(position: Position): boolean {
+    if (position.x < 0 || position.x >= GRID_COLS || position.y >= GRID_ROWS) {
+      return true;
     }
-
-    return yCollisionPoint;
+    if (position.y < 0) {
+      return false;
+    }
+    return this.board[position.y]?.[position.x] === BlockState.Filled;
   }
 
-  private getYCollision(x: number, y: number) {
-    let collidedY = y;
+  private isValidPosition(shape: Shape, position: Position): boolean {
+    for (const [x, y] of shape) {
+      const checkX = position.x + x;
+      const checkY = position.y + y;
 
-    while (!this.checkCollision(x, collidedY)) {
-      collidedY += 1;
+      if (this.checkCollision({ x: checkX, y: checkY })) {
+        return false;
+      }
     }
-
-    return collidedY;
+    return true;
   }
 
   private testRotation(activeTetromino: Tetromino) {
-    const { position } = activeTetromino.getState();
+    const originalRotation = activeTetromino.getRotation();
+    const originalPosition = activeTetromino.getPosition();
 
-    const rotate = () =>
-      activeTetromino.rotate((shape) =>
-        shape.some(([x, y]) =>
-          this.checkCollision(position.x + x, position.y + y),
-        ),
+    const nextRotation =
+      ROTATIONS[(ROTATIONS.indexOf(originalRotation) + 1) % ROTATIONS.length]!;
+
+    const nextShape = activeTetromino.getShapeForRotation(nextRotation);
+
+    const kickOffsets = [0, -1, 1, -2, 2];
+
+    for (const offsetX of kickOffsets) {
+      const hasCollision = nextShape.some(([x, y]) =>
+        this.checkCollision({
+          x: originalPosition.x + x + offsetX,
+          y: originalPosition.y + y,
+        }),
       );
 
-    let canRotate = rotate();
-
-    // TODO(fcasibu): better to have a bound check?
-    while (!canRotate) {
-      canRotate = rotate();
+      if (!hasCollision) {
+        activeTetromino.rotate(nextRotation);
+        activeTetromino.updatePosition(
+          originalPosition.x + offsetX,
+          originalPosition.y,
+        );
+        return nextShape.map(([x, y]) => [x + offsetX, y]) as Shape;
+      }
     }
 
-    return activeTetromino.getShape();
-  }
-
-  private checkCollision(x: number, y: number) {
-    if (x < 0 || x >= GRID_COLS) return true;
-
-    if (y < 0 || y >= GRID_ROWS) return true;
-
-    const cell = this.board[y]?.[x];
-
-    return cell === BlockState.Filled;
-  }
-
-  private clearPreviouslyFilledCoordinates() {
-    if (!this.previouslyFilledCoordinates.length) return;
-
-    for (const [x, y] of this.previouslyFilledCoordinates) {
-      this.board[x]![y] = BlockState.Empty;
-    }
-
-    this.previouslyFilledCoordinates = [];
+    activeTetromino.rotate(originalRotation);
+    activeTetromino.updatePosition(originalPosition.x, originalPosition.y);
+    return activeTetromino.getShapeForRotation(originalRotation);
   }
 }
