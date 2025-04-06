@@ -4,14 +4,13 @@ import type { GameState } from './game.types';
 export interface ClientPayloads {
   joinRoom: {
     playerId: string;
-    roomId: string;
   };
   leaveRoom: {
     playerId: string;
     roomId: string;
   };
-  createRoom: {
-    hostId: string;
+  startGame: {
+    roomId: string;
   };
   rotateTetromino: {
     playerId: string;
@@ -30,7 +29,7 @@ export interface ClientPayloads {
 
 export interface ServerPayloads {
   gameState: GameState;
-  listAvailableRooms: string[];
+  gameWinner: { roomId: string; playerId: string };
 }
 
 export type ClientToServerEvents = {

@@ -18,7 +18,6 @@ const TYPES = [
 ] as const;
 
 export class PlayerService {
-  private id = crypto.randomUUID();
   private heldTetromino: TetrominoType | null = null;
   private currentTetromino: Tetromino | null = null;
   private tetrominoQueue: TetrominoType[] = this.generateInitialTetrominos();
@@ -26,7 +25,10 @@ export class PlayerService {
 
   private maxQueueSize = 5;
 
-  constructor(private readonly board: GameboardService) {}
+  constructor(
+    private readonly id: string,
+    private readonly board: GameboardService,
+  ) {}
 
   public getState(): PlayerState {
     return {
