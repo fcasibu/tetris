@@ -13,10 +13,12 @@ export class Tetromino {
 
   constructor(private readonly type: TetrominoType) {}
 
-  public rotate() {
+  public rotate(cb: (shape: [number, number][]) => boolean): boolean {
     const newRotationIndex = ROTATIONS.indexOf(this.rotation) + 1;
 
     this.rotation = ROTATIONS[newRotationIndex % ROTATIONS.length] as Rotation;
+
+    return cb(this.getShape());
   }
 
   public updatePosition(x: number, y: number) {
