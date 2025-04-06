@@ -53,6 +53,14 @@ export class GameInstance {
     });
   }
 
+  public getRoomId() {
+    return this.id;
+  }
+
+  public isAvailable() {
+    return this.players.size < 2;
+  }
+
   public getState(): GameState {
     return {
       id: this.id,
@@ -72,6 +80,22 @@ export class GameInstance {
     let hasWinner = false;
 
     this.interval = setInterval(() => {
+      if (this.players.size < 2) {
+        this.status = GameStatus.Finished;
+
+        this.socket.to(this.id).emit('gameWinner', {
+          roomId: this.id,
+          playerId:
+            this.players.values().next().value?.player.getState().id ?? '',
+        });
+
+        this.players.clear();
+
+        clearInterval(this.interval);
+
+        return;
+      }
+
       for (const [_, { player, action }] of this.players) {
         const playerState = player.getState();
         if (playerState.isGameOver) {
@@ -96,10 +120,12 @@ export class GameInstance {
           playerId: winner,
         });
 
+        this.status = GameStatus.Finished;
+
         clearInterval(this.interval);
       }
 
-      this.socket.to(this.id).emit('gameState', this.getState());
+      this.socket.to(this.id).emit('gameStateUpdate', this.getState());
     }, 1000 / 60);
   }
 
